@@ -5,59 +5,44 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration};
 
 enum TaskType {
-    CpuLoadAverageTask,
-    PrintTimeTask,
-    MemInfoTask(HashMap<String, Box<dyn Any + Send + Sync>>),
+    CpuLoadAverageTask(u32),
+    PrintTimeTask(u32),
+    MemInfoTask(u32, HashMap<String, Box<dyn Any + Send + Sync>>),
 }
 
-struct Task {
-    name: String,
-    execution_interval_secs: u32,
-    task_type: TaskType,
-}
-
-impl Task {
-    fn new(name: String, execution_interval_secs: u32, task_type: TaskType) -> Self {
-        Self {
-            name,
-            execution_interval_secs,
-            task_type,
-        }
-    }
-}
-
-async fn task_executor() -> Result<(Sender<Task>, Receiver<String>), Box<dyn std::error::Error>> {
-    let (task_tx, mut task_rx) = channel::<Task>(32);
+async fn task_executor() -> Result<(Sender<TaskType>, Receiver<String>), Box<dyn std::error::Error>>
+{
+    let (task_tx, mut task_rx) = channel::<TaskType>(32);
     let (status_tx, status_rx) = channel::<String>(32);
 
     tokio::spawn(async move {
-        while let Some(task) = task_rx.recv().await {
-            let interval = Duration::from_secs(task.execution_interval_secs as u64);
-            let task_type = task.task_type;
+        while let Some(task_type) = task_rx.recv().await {
             let status_tx = status_tx.clone();
             tokio::spawn(async move {
                 loop {
                     match task_type {
-                        TaskType::CpuLoadAverageTask => {
+                        TaskType::CpuLoadAverageTask(duration) => {
                             status_tx
                                 .send("Running CPU Load Average Task".to_string())
                                 .await
                                 .unwrap();
+                            sleep(Duration::from_secs(duration as u64)).await;
                         }
-                        TaskType::PrintTimeTask => {
+                        TaskType::PrintTimeTask(duration) => {
                             status_tx
                                 .send("Running Print Time Task".to_string())
                                 .await
                                 .unwrap();
+                            sleep(Duration::from_secs(duration as u64)).await;
                         }
-                        TaskType::MemInfoTask(ref map) => {
+                        TaskType::MemInfoTask(duration, ref map) => {
                             status_tx
                                 .send(format!("Running Mem Info Task with data: {:?}", map))
                                 .await
                                 .unwrap();
+                            sleep(Duration::from_secs(duration as u64)).await;
                         }
                     }
-                    sleep(interval).await;
                 }
             });
         }
@@ -76,17 +61,9 @@ async fn main() {
 
     let (task_sender, mut status_receiver) = task_executor().await.unwrap();
 
-    let cpu_task = Task::new(
-        "CPU Load Average".to_string(),
-        5,
-        TaskType::CpuLoadAverageTask,
-    );
-    let time_task = Task::new("Print Time".to_string(), 1, TaskType::PrintTimeTask);
-    let mem_info_task = Task::new(
-        "Memory Info".to_string(),
-        3,
-        TaskType::MemInfoTask(HashMap::new()),
-    );
+    let cpu_task = TaskType::CpuLoadAverageTask(5);
+    let time_task = TaskType::PrintTimeTask(1);
+    let mem_info_task = TaskType::MemInfoTask(3, HashMap::new());
 
     task_sender.send(cpu_task).await.unwrap();
     task_sender.send(time_task).await.unwrap();
