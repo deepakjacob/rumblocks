@@ -1,10 +1,12 @@
 mod format;
 
+use std::collections::HashMap;
 use std::process::Command;
 
 use chrono::Local;
 use format::{
     cpu_load_avg_format, date_info_format, mem_format, network_io_format, wifi_info_format,
+    SEPARATOR,
 };
 use std::thread::sleep as sleepstd;
 use systemstat::{Platform, System};
@@ -17,18 +19,24 @@ const NET_INTERFACE_TO_LISTEN: &str = "wlo1";
 
 const GB: f32 = 1024.0 * 1024.0 * 1024.0;
 
+const MEM_INFO: &str = "MemInfo";
+const CPU_LOAD_AVG: &str = "CpuLoadAvg";
+const WIFI_INFO: &str = "WifiInfo";
+const DATE_INFO: &str = "DateInfo";
+const NET_IO: &str = "NetworkIo";
+
 enum TaskType {
-    CpuLoadAverage(u32, fn() -> String),
-    DateInfo(u32, fn() -> String),
-    MemInfo(u32, fn() -> String),
-    WifiInfo(u32, fn() -> String),
-    NetworkIo(u32, fn() -> String),
+    CpuLoadAverage(String, u32, fn() -> String),
+    DateInfo(String, u32, fn() -> String),
+    MemInfo(String, u32, fn() -> String),
+    WifiInfo(String, u32, fn() -> String),
+    NetworkIo(String, u32, fn() -> String),
 }
 
-async fn task_executor() -> Result<(Sender<TaskType>, Receiver<String>), Box<dyn std::error::Error>>
-{
+async fn task_executor(
+) -> Result<(Sender<TaskType>, Receiver<(String, String)>), Box<dyn std::error::Error>> {
     let (task_tx, mut task_rx) = channel::<TaskType>(32);
-    let (status_tx, status_rx) = channel::<String>(32);
+    let (status_tx, status_rx) = channel::<(String, String)>(32);
 
     tokio::spawn(async move {
         while let Some(task_type) = task_rx.recv().await {
@@ -36,12 +44,15 @@ async fn task_executor() -> Result<(Sender<TaskType>, Receiver<String>), Box<dyn
             tokio::spawn(async move {
                 loop {
                     match task_type {
-                        TaskType::CpuLoadAverage(interval, execute_fn)
-                        | TaskType::DateInfo(interval, execute_fn)
-                        | TaskType::MemInfo(interval, execute_fn)
-                        | TaskType::WifiInfo(interval, execute_fn)
-                        | TaskType::NetworkIo(interval, execute_fn) => {
-                            status_tx.send(execute_fn()).await.unwrap();
+                        TaskType::CpuLoadAverage(ref name, interval, execute_fn)
+                        | TaskType::DateInfo(ref name, interval, execute_fn)
+                        | TaskType::MemInfo(ref name, interval, execute_fn)
+                        | TaskType::WifiInfo(ref name, interval, execute_fn)
+                        | TaskType::NetworkIo(ref name, interval, execute_fn) => {
+                            status_tx
+                                .send((name.to_owned(), execute_fn()))
+                                .await
+                                .unwrap();
                             sleep(Duration::from_secs(interval as u64)).await;
                         }
                     }
@@ -63,7 +74,7 @@ async fn main() {
 
     let (task_sender, mut status_receiver) = task_executor().await.unwrap();
 
-    let cpu_load_avg = TaskType::CpuLoadAverage(3, || {
+    let cpu_load_avg = TaskType::CpuLoadAverage(CPU_LOAD_AVG.to_string(), 3, || {
         let value = if let Ok(loadavg) = System::new().load_average() {
             loadavg.one
         } else {
@@ -72,9 +83,10 @@ async fn main() {
         cpu_load_avg_format(value)
     });
 
-    let date_info = TaskType::DateInfo(30, || date_info_format(Local::now()));
+    let date_info =
+        TaskType::DateInfo(DATE_INFO.to_string(), 30, || date_info_format(Local::now()));
 
-    let mem_info = TaskType::MemInfo(3, || {
+    let mem_info = TaskType::MemInfo(MEM_INFO.to_string(), 3, || {
         let value = if let Ok(mem) = System::new().memory() {
             let total_ram = (mem.total.0 as f32) / GB;
             let used_ram = ((mem.total.0 - mem.free.0) as f32) / GB;
@@ -86,7 +98,7 @@ async fn main() {
         mem_format(value)
     });
 
-    let wifi_info = TaskType::WifiInfo(5, || {
+    let wifi_info = TaskType::WifiInfo(WIFI_INFO.to_string(), 5, || {
         let output = Command::new(NET_EXECUTABLE)
             .arg("dev")
             .arg(NET_INTERFACE_TO_LISTEN)
@@ -105,7 +117,7 @@ async fn main() {
         wifi_info_format(0)
     });
 
-    let network_io = TaskType::NetworkIo(3, || {
+    let network_io = TaskType::NetworkIo(NET_IO.to_string(), 3, || {
         let call_interval = Duration::from_secs(1); // 1 second interval
         let (rx_initial, tx_initial) = fetch_network_stats();
         sleepstd(call_interval);
@@ -126,10 +138,51 @@ async fn main() {
     task_sender.send(wifi_info).await.unwrap();
     task_sender.send(network_io).await.unwrap();
 
+    // while let Some(status) = status_receiver.recv().await {
+    //     println!("Received status: {}", status);
+    // }
+
+    let mut status_map: HashMap<String, String> = HashMap::new();
     while let Some(status) = status_receiver.recv().await {
-        println!("Received status: {}", status);
+        status_map.insert(
+            /* name */ status.0.clone(),
+            /* result */ status.1.clone(),
+        );
+        let mem_info = match status_map.get(MEM_INFO) {
+            Some(memo_info) => memo_info,
+            _ => "",
+        };
+
+        let cpu_load_avg = match status_map.get(CPU_LOAD_AVG) {
+            Some(cpu_info) => cpu_info,
+            _ => "",
+        };
+
+        let date_info = match status_map.get(DATE_INFO) {
+            Some(date_info) => date_info,
+            _ => "",
+        };
+        let net_io = match status_map.get(NET_IO) {
+            Some(net_info) => net_info,
+            _ => "",
+        };
+        let wifi_info = match status_map.get(WIFI_INFO) {
+            Some(wifi_info) => wifi_info,
+            _ => "",
+        };
+
+        update_status(&format!(
+            "{} {SEPARATOR} {} {SEPARATOR} {} {SEPARATOR} {} {SEPARATOR} {}",
+            wifi_info, net_io, mem_info, cpu_load_avg, date_info
+        ));
     }
 }
+
+fn update_status(status: &str) {
+    let _ = Command::new("xsetroot").arg("-name").arg(status).output();
+    // println!("{}", status)
+}
+
 fn fetch_network_stats() -> (u64, u64) {
     let sys = System::new();
     match sys.networks() {
