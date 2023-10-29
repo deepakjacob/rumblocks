@@ -3,7 +3,7 @@
 A [`dwm`](https://dwm.suckless.org) status bar which changes colors based on the block stats written in pure Rust (async / non-blocking).
 Note: `dwm` needs to be patched with [status2d](https://dwm.suckless.org/patches/status2d/).  
 
-![rumblocks-image](rumblocks.png)  
+![Sample rumblocks image](rumblocks.jpg)  
 
 ## Features
 
