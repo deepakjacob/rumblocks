@@ -332,7 +332,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rumblock"
+name = "rumblocks"
 version = "0.1.0"
 dependencies = [
  "chrono",

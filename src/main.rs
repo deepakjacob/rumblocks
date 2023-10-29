@@ -74,7 +74,7 @@ async fn main() {
 
     let (task_sender, mut status_receiver) = task_executor().await.unwrap();
 
-    let cpu_load_avg = TaskType::CpuLoadAverage(CPU_LOAD_AVG.to_string(), 3, || {
+    let cpu_load_avg = TaskType::CpuLoadAverage(CPU_LOAD_AVG.to_string(), 5, || {
         let value = if let Ok(loadavg) = System::new().load_average() {
             loadavg.one
         } else {
@@ -86,7 +86,7 @@ async fn main() {
     let date_info =
         TaskType::DateInfo(DATE_INFO.to_string(), 30, || date_info_format(Local::now()));
 
-    let mem_info = TaskType::MemInfo(MEM_INFO.to_string(), 3, || {
+    let mem_info = TaskType::MemInfo(MEM_INFO.to_string(), 5, || {
         let value = if let Ok(mem) = System::new().memory() {
             let total_ram = (mem.total.0 as f32) / GB;
             let used_ram = ((mem.total.0 - mem.free.0) as f32) / GB;
@@ -98,7 +98,7 @@ async fn main() {
         mem_format(value)
     });
 
-    let wifi_info = TaskType::WifiInfo(WIFI_INFO.to_string(), 5, || {
+    let wifi_info = TaskType::WifiInfo(WIFI_INFO.to_string(), 10, || {
         let output = Command::new(NET_EXECUTABLE)
             .arg("dev")
             .arg(NET_INTERFACE_TO_LISTEN)
