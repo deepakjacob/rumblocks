@@ -1,8 +1,9 @@
 # rumblocks
 
 A [`dwm`](https://dwm.suckless.org) status bar which changes colors based on the block stats written in pure Rust (async / non-blocking).
+Note: `dwm` needs to be patched with [status2d](https://dwm.suckless.org/patches/status2d/).  
 
-![A lean config of rumblocks.](rumblocks.png)
+![rumblocks-image](rumblocks.png)  
 
 ## Features
 
@@ -126,7 +127,8 @@ Apart from that, you need `dwm` to be patched with
 
 ## Credits
 
-This work would not have been possible without
-[Luke's build of dwmblocks](https://github.com/LukeSmithxyz/dwmblocks)
-[statuscmd patch](https://dwm.suckless.org/patches/status2d/)
-[Rust Tokio](https://tokio.rs/)
+This work would not have been possible without the following:  
+ - [Luke's build of dwmblocks](https://github.com/LukeSmithxyz/dwmblocks)  
+ - [statuscmd patch](https://dwm.suckless.org/patches/status2d/)  
+ - [Rust Tokio](https://tokio.rs/)  
+
