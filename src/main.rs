@@ -10,22 +10,27 @@ use format::{
 };
 use std::thread::sleep as sleepstd;
 use systemstat::{Platform, System};
-use tokio::runtime::Builder;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration};
 
+/* a linux utility to get the wifi strength e.g, iw, iwctl, wavemon etc*/
 const NET_EXECUTABLE: &str = "iw";
+
+/* the n/w interface to listen, use "ip a" to find out yours */
 const NET_INTERFACE_TO_LISTEN: &str = "wlo1";
 
 const GB: f32 = 1024.0 * 1024.0 * 1024.0;
+const MB: f64 = 1024.0 * 1024.0;
 
+/* supported blocks */
 const MEM_INFO: &str = "MemInfo";
 const CPU_LOAD_AVG: &str = "CpuLoadAvg";
 const WIFI_INFO: &str = "WifiInfo";
 const DATE_INFO: &str = "DateInfo";
 const NET_IO: &str = "NetworkIo";
 
-enum TaskType {
+enum BlockType {
+    /* block  -   name interval fn to be executed */
     CpuLoadAverage(String, u32, fn() -> String),
     DateInfo(String, u32, fn() -> String),
     MemInfo(String, u32, fn() -> String),
@@ -33,22 +38,24 @@ enum TaskType {
     NetworkIo(String, u32, fn() -> String),
 }
 
-async fn task_executor(
-) -> Result<(Sender<TaskType>, Receiver<(String, String)>), Box<dyn std::error::Error>> {
-    let (task_tx, mut task_rx) = channel::<TaskType>(32);
+async fn block_executor(
+) -> Result<(Sender<BlockType>, Receiver<(String, String)>), Box<dyn std::error::Error>> {
+    let (block_tx, mut block_rx) = channel::<BlockType>(32);
     let (status_tx, status_rx) = channel::<(String, String)>(32);
 
+    // thread spawn on each block request
     tokio::spawn(async move {
-        while let Some(task_type) = task_rx.recv().await {
+        while let Some(block_type) = block_rx.recv().await {
             let status_tx = status_tx.clone();
+            // thread spawned to continuously execute each block based on the interval provided
             tokio::spawn(async move {
                 loop {
-                    match task_type {
-                        TaskType::CpuLoadAverage(ref name, interval, execute_fn)
-                        | TaskType::DateInfo(ref name, interval, execute_fn)
-                        | TaskType::MemInfo(ref name, interval, execute_fn)
-                        | TaskType::WifiInfo(ref name, interval, execute_fn)
-                        | TaskType::NetworkIo(ref name, interval, execute_fn) => {
+                    match block_type {
+                        BlockType::CpuLoadAverage(ref name, interval, execute_fn)
+                        | BlockType::DateInfo(ref name, interval, execute_fn)
+                        | BlockType::MemInfo(ref name, interval, execute_fn)
+                        | BlockType::WifiInfo(ref name, interval, execute_fn)
+                        | BlockType::NetworkIo(ref name, interval, execute_fn) => {
                             status_tx
                                 .send((name.to_owned(), execute_fn()))
                                 .await
@@ -61,20 +68,15 @@ async fn task_executor(
         }
     });
 
-    Ok((task_tx, status_rx))
+    Ok((block_tx, status_rx))
 }
 
 #[tokio::main]
 async fn main() {
-    let _runtime = Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(2)
-        .build()
-        .unwrap();
+    let (block_sender, mut status_receiver) = block_executor().await.unwrap();
 
-    let (task_sender, mut status_receiver) = task_executor().await.unwrap();
-
-    let cpu_load_avg = TaskType::CpuLoadAverage(CPU_LOAD_AVG.to_string(), 5, || {
+    /* ------------------- Cpu Load Avg block ------------------------*/
+    let cpu_load_avg = BlockType::CpuLoadAverage(CPU_LOAD_AVG.to_string(), 5, || {
         let value = if let Ok(loadavg) = System::new().load_average() {
             loadavg.one
         } else {
@@ -83,10 +85,11 @@ async fn main() {
         cpu_load_avg_format(value)
     });
 
+    /* --------------------- Date block ----------------------------*/
     let date_info =
-        TaskType::DateInfo(DATE_INFO.to_string(), 30, || date_info_format(Local::now()));
+        BlockType::DateInfo(DATE_INFO.to_string(), 30, || date_info_format(Local::now()));
 
-    let mem_info = TaskType::MemInfo(MEM_INFO.to_string(), 5, || {
+    let mem_info = BlockType::MemInfo(MEM_INFO.to_string(), 5, || {
         let value = if let Ok(mem) = System::new().memory() {
             let total_ram = (mem.total.0 as f32) / GB;
             let used_ram = ((mem.total.0 - mem.free.0) as f32) / GB;
@@ -98,7 +101,8 @@ async fn main() {
         mem_format(value)
     });
 
-    let wifi_info = TaskType::WifiInfo(WIFI_INFO.to_string(), 10, || {
+    /* ------------------------- Wifi Info block ---------------------*/
+    let wifi_info = BlockType::WifiInfo(WIFI_INFO.to_string(), 10, || {
         let output = Command::new(NET_EXECUTABLE)
             .arg("dev")
             .arg(NET_INTERFACE_TO_LISTEN)
@@ -117,31 +121,28 @@ async fn main() {
         wifi_info_format(0)
     });
 
-    let network_io = TaskType::NetworkIo(NET_IO.to_string(), 3, || {
+    /* --------------------------- Net Io block ------------------------*/
+    let network_io = BlockType::NetworkIo(NET_IO.to_string(), 3, || {
         let call_interval = Duration::from_secs(1); // 1 second interval
         let (rx_initial, tx_initial) = fetch_network_stats();
         sleepstd(call_interval);
         let (rx_final, tx_final) = fetch_network_stats();
 
         // Calculate the speed per second
-        let rx_speed_per_sec =
-            ((rx_final - rx_initial) as f64 / (1024.0 * 1024.0)) / call_interval.as_secs_f64();
-        let tx_speed_per_sec =
-            ((tx_final - tx_initial) as f64 / (1024.0 * 1024.0)) / call_interval.as_secs_f64();
+        let rx_speed_per_sec = ((rx_final - rx_initial) as f64 / MB) / call_interval.as_secs_f64();
+        let tx_speed_per_sec = ((tx_final - tx_initial) as f64 / MB) / call_interval.as_secs_f64();
 
         network_io_format(rx_speed_per_sec, tx_speed_per_sec)
     });
 
-    task_sender.send(cpu_load_avg).await.unwrap();
-    task_sender.send(date_info).await.unwrap();
-    task_sender.send(mem_info).await.unwrap();
-    task_sender.send(wifi_info).await.unwrap();
-    task_sender.send(network_io).await.unwrap();
+    // send the blocks for execution
+    block_sender.send(cpu_load_avg).await.unwrap();
+    block_sender.send(date_info).await.unwrap();
+    block_sender.send(mem_info).await.unwrap();
+    block_sender.send(wifi_info).await.unwrap();
+    block_sender.send(network_io).await.unwrap();
 
-    // while let Some(status) = status_receiver.recv().await {
-    //     println!("Received status: {}", status);
-    // }
-
+    // map to store the execution results from the block
     let mut status_map: HashMap<String, String> = HashMap::new();
     while let Some(status) = status_receiver.recv().await {
         status_map.insert(
@@ -180,7 +181,6 @@ async fn main() {
 
 fn update_status(status: &str) {
     let _ = Command::new("xsetroot").arg("-name").arg(status).output();
-    // println!("{}", status)
 }
 
 fn fetch_network_stats() -> (u64, u64) {

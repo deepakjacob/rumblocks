@@ -2,16 +2,21 @@ use chrono::{DateTime, Local};
 
 pub const SEPARATOR: &str = "^c#FFFFFF^|";
 
+const GREEN: &str = "#00FF00"; // Low usage, Green
+const YELLOW: &str = "#FFFF00"; // Moderate usage, Yellow
+const ORANGE: &str = "#FFA500"; // High usage, Orange
+const RED: &str = "#FF0000"; // Very high usage, Red
+
 pub fn mem_format((used_ram, total_ram): (f32, f32)) -> String {
     let ram_percentage = used_ram / total_ram * 100.0;
     let color = if ram_percentage <= 25.0 {
-        "#00FF00" // Low usage, green
+        GREEN // Low usage, green
     } else if ram_percentage > 25.0 && ram_percentage <= 50.0 {
-        "#FFFF00" // Moderate usage, yellow
+        YELLOW // Moderate usage, yellow
     } else if ram_percentage > 50.0 && ram_percentage <= 75.0 {
-        "#FFA500" // High usage, orange
+        ORANGE // High usage, orange
     } else {
-        "#FF0000" // Very high usage, red
+        RED // Very high usage, red
     };
     format!(
         "^c{}^{:.2} {SEPARATOR} ^c{}^{:.2}",
@@ -21,13 +26,13 @@ pub fn mem_format((used_ram, total_ram): (f32, f32)) -> String {
 
 pub fn cpu_load_avg_format(loadavg: f32) -> String {
     let (color, symbol) = if loadavg < 0.5 {
-        ("#00FF00", "▁") // Low load, green
+        (GREEN, "▁") // Low load, green
     } else if loadavg >= 0.5 && loadavg < 1.0 {
-        ("#FFFF00", "■") // Moderate load, yellow
+        (YELLOW, "■") // Moderate load, yellow
     } else if loadavg >= 1.0 && loadavg < 1.5 {
-        ("#FFA500", "▆") // High load, orange
+        (ORANGE, "▆") // High load, orange
     } else {
-        ("#FF0000", "█") // Very high load, red
+        (RED, "█") // Very high load, red
     };
 
     format!("^c{}^{} {:.2}", color, symbol, loadavg)
@@ -48,13 +53,15 @@ pub fn network_io_format(rx_speed: f64, tx_speed: f64) -> String {
 }
 fn get_speed_color(speed_mib: f64) -> String {
     if speed_mib < 1.0 {
-        return "#00FF00".to_string(); // Green for speed < 1 MiB
+        return GREEN.to_string(); // Green for speed < 1 MiB
     } else if speed_mib >= 1.0 && speed_mib < 10.0 {
-        return "#FFFF00".to_string(); // Yellow for 1 MiB <= speed < 10 MiB
+        return YELLOW.to_string(); // Yellow for 1 MiB <= speed < 10 MiB
     } else {
-        return "#FF0000".to_string(); // Red for speed >= 10 MiB
+        return RED.to_string(); // Red for speed >= 10 MiB
     }
 }
+/* instead of colors we can use bars, arrows or moon phases to show the strength */
+
 // let bars = vec!["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
 // let arrows = vec!["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"];
 // let moon_phases = vec!["○", "◔", "◑", "◕", "●"];
@@ -67,13 +74,13 @@ fn get_speed_color(speed_mib: f64) -> String {
 
 pub fn wifi_info_format(strength: i32) -> String {
     let color = if strength > -70 {
-        "#00FF00" // Strong signal, green
+        RED // Strong signal, green
     } else if strength <= -70 && strength > -80 {
-        "#FFFF00" // Moderate signal, yellow
+        YELLOW // Moderate signal, yellow
     } else if strength <= -80 && strength > -90 {
-        "#FFA500" // Weak signal, orange
+        ORANGE // Weak signal, orange
     } else {
-        "#FF0000" // Very weak signal, red
+        RED // Very weak signal, red
     };
     format!("^c{}^{} dBm", color, strength)
 }
