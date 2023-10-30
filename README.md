@@ -1,7 +1,9 @@
 # rumblocks
 
 A [`dwm`](https://dwm.suckless.org) status bar which changes colors based on the block stats written in pure Rust (async / non-blocking).
-Note: `dwm` needs to be patched with [status2d](https://dwm.suckless.org/patches/status2d/).  
+Note: 
+ - `dwm` needs to be patched with [status2d](https://dwm.suckless.org/patches/status2d/).
+ - the wifi strength is obtained from [iw](https://wireless.wiki.kernel.org/en/users/documentation/iw). 
 
 ![Sample rumblocks image](rumblocks.jpg)  
 
@@ -11,7 +13,7 @@ Note: `dwm` needs to be patched with [status2d](https://dwm.suckless.org/patches
 - Lightweight
 - [Suckless](https://suckless.org/philosophy)
 - Blocks:
-  - Executed asynchronously based on Tokio runtime.
+  - Executed asynchronously based on tokio runtime.
   - No shells scripts, pure Rust
   - Maintainable
 
@@ -26,12 +28,12 @@ while :; do
 done
 ```
 
-Using `dwmblocks` allows you to divide the status bar into multiple blocks, each of
+The `dwmblocks` allows you to divide the status bar into multiple blocks, each of
 which can be updated at its own interval.
 
 ## Why `rumblocks`?
 
-Vanilla `dwmblocks` block execution is sequential which may lead to a freeze. 
+Vanilla `dwmblocks` block execution is sequential. 
 With `rumblocks`, executes blocks in a aynchronous non-blocking manner.
 
 ## Installation
@@ -129,6 +131,6 @@ Apart from that, you need `dwm` to be patched with
 
 This work would not have been possible without the following:  
  - [Luke's build of dwmblocks](https://github.com/LukeSmithxyz/dwmblocks)  
- - [statuscmd patch](https://dwm.suckless.org/patches/status2d/)  
+ - [status2d patch](https://dwm.suckless.org/patches/status2d/)  
  - [Rust Tokio](https://tokio.rs/)  
 
