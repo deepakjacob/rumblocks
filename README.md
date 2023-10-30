@@ -7,15 +7,15 @@ Note:
 
 ![Sample rumblocks image](rumblocks.jpg)  
 
-## Features
+## Key Features  
+- [Configurable Components](#modifying-the-blocks)
+- Low Resource Consumption
+- In Accordance with [Suckless Principles](https://suckless.org/philosophy)
+- Blocks:
+  - Asynchronously Operated via the Tokio Runtime
+  - Entirely Crafted in Pure Rust, No Shell Scripts Required
+  - Simple to Manage
 
-    Customizable Modules(#modifying-the-blocks)
-    Resource-Efficient
-    Aligned with [Suckless Philosophy](https://suckless.org/philosophy)
-    Blocks:
-        Run asynchronously using the Tokio runtime.
-        Built entirely in pure Rust, no shell scripts.
-        Easy to Maintain
 
 ## Why Choose `dwmblocks`?
 
