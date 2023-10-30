@@ -1,25 +1,25 @@
 # rumblocks
+A dynamic status bar for [`dwm`](https://dwm.suckless.org), crafted in pure Rust to offer both asynchronous and non-blocking functionality. The bar color adapts based on the status of each block. 
 
-A [`dwm`](https://dwm.suckless.org) status bar which changes colors based on the block stats written in pure Rust (async / non-blocking).
-Note: 
- - `dwm` needs to be patched with [status2d](https://dwm.suckless.org/patches/status2d/).
- - the wifi strength is obtained from [iw](https://wireless.wiki.kernel.org/en/users/documentation/iw). 
+Note:  
+    dwm must be patched with the [status2d extension](https://dwm.suckless.org/patches/status2d/).  
+    WiFi signal strength is sourced from the [iw utility](https://wireless.wiki.kernel.org/en/users/documentation/iw).  
 
 ![Sample rumblocks image](rumblocks.jpg)  
 
 ## Features
 
-- [Modular](#modifying-the-blocks)
-- Lightweight
-- [Suckless](https://suckless.org/philosophy)
-- Blocks:
-  - Executed asynchronously based on tokio runtime.
-  - No shells scripts, pure Rust
-  - Maintainable
+    Customizable Modules(#modifying-the-blocks)
+    Resource-Efficient
+    Aligned with [Suckless Philosophy](https://suckless.org/philosophy)
+    Blocks:
+        Run asynchronously using the Tokio runtime.
+        Built entirely in pure Rust, no shell scripts.
+        Easy to Maintain
 
-## Why `dwmblocks`?
+## Why Choose `dwmblocks`?
 
-In `dwm`, status bar blocks are executed in an infinite loop,:
+In the traditional dwm setup, status bar blocks are refreshed in a continuous loop, as shown below:
 
 ```sh
 while :; do
@@ -28,13 +28,11 @@ while :; do
 done
 ```
 
-The `dwmblocks` allows you to divide the status bar into multiple blocks, each of
-which can be updated at its own interval.
+`dwmblocks` enhances this by allowing you to segment the status bar into multiple blocks. Each of these blocks can be updated at its own, individual rate.
 
-## Why `rumblocks`?
+## What Sets `rumblocks` Apart?
 
-Vanilla `dwmblocks` block execution is sequential. 
-With `rumblocks`, executes blocks in a aynchronous non-blocking manner.
+While the standard dwmblocks executes blocks sequentially, rumblocks takes it to the next level by running blocks asynchronously in a non-blocking fashion.
 
 ## Installation
 
@@ -47,12 +45,12 @@ cargo build -release
 sudo cp target/release/rumblocks /usr/local/bin
 ```
 
-## Usage
+## How to Use
 
-To set `rumblocks` as your status bar, you need to run it as a background
-process on startup. One way is to add the following to `~/.xinitrc` or any other startup scripts.
+To set `rumblocks` as your default status bar, you'll need to run it as a background process during system startup. This can be achieved by adding the necessary command to your `~/.xinitrc` or any other startup scripts you might be using.
 
-If you use dwm's [autostart](https://dwm.suckless.org/patches/autostart/) add it there.
+If you're utilizing dwm's [autostart functionality](https://dwm.suckless.org/patches/autostart/), you can also add the command there.
+
 
 ```sh
 rumblocks &
@@ -60,7 +58,7 @@ rumblocks &
 
 ### Modifying the blocks
 
-You can define your status bar blocks in `src/main.rs`:
+You can define your status bar blocks like the following `src/main.rs`:
 
 ```rust
 
@@ -122,10 +120,6 @@ Each block has the following properties:
 CpuLoadAverage(String, u32, fn() -> String),
 
 ```
-
-
-Apart from that, you need `dwm` to be patched with
-[status2d](https://dwm.suckless.org/patches/status2d/).
 
 ## Credits
 
